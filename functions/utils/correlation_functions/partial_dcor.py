@@ -4,7 +4,7 @@ from scipy.stats import t as student_t
 from sklearn.linear_model import Ridge
 
 
-def partial_corr_value_with_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: float = 0.01, random_state: int = None) -> float:
+def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: float = 0.01, random_state: int = None) -> float:
     """
     Compute a p-value for testing (conditional) independence using distance correlation with linear regression residuals.
 
