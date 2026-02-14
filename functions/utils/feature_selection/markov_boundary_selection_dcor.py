@@ -37,7 +37,7 @@ def _get_marginal_dependent_features(
     """
     selected: List[int] = []
     for j, feature_idx in enumerate(selected_columns):
-        p = partial_dcor(x_subset[:, j], y, cond=None, random_state=random_state)
+        p = partial_dcor(x_subset[:, j], y, cond=None)
         if p < alpha:
             selected.append(int(feature_idx))
     return selected
@@ -73,8 +73,8 @@ def _test_conditional_independence(
     """
     for ksize in range(len(others) + 1):
         for cond_set in combinations(others, ksize):
-            z = x[:, cond_set] if cond_set else np.empty((n_samples, 0))
-            p = partial_dcor(x[:, j], y, cond=z, random_state=random_state)
+            z = x[:, cond_set] if cond_set else None
+            p = partial_dcor(x[:, j], y, cond=z)
             if p >= alpha:
                 return True
     return False

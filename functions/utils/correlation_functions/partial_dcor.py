@@ -4,7 +4,7 @@ from scipy.stats import t as student_t
 from sklearn.linear_model import Ridge
 
 
-def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: float = 0.01, random_state: int = None) -> float:
+def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: float = 0.01) -> float:
     """
     Compute a p-value for testing (conditional) independence using distance correlation with linear regression residuals.
 
@@ -15,7 +15,6 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
         y: Shape (n, ) or (n, 1). Target variable.
         cond: Conditioning matrix Z of shape (n, k), or None. If provided, tests whether x ⟂ y | Z.
         alpha: Regularization parameter.
-        random_state: Optional random state for reproducibility.
 
     Returns:
         Two-sided p-value for the null hypothesis that the (partial) distance correlation between x and y is zero.
