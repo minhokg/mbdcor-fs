@@ -1,74 +1,92 @@
 import dcor
 import numpy as np
 from scipy.stats import t as student_t
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import LogisticRegression, Ridge
 
 
-def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: float = 0.01, random_state: int = None) -> float:
+def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: float = 0.01) -> float:
     """
-    Compute a p-value for testing (conditional) independence using distance correlation with linear regression residuals.
+    Compute a p-value for testing (conditional) independence using distance correlation.
 
-    This approach is most appropriate when relationships are both linear and non-linear and variables are roughly Gaussian.
+    :param x: Predictor variable. Array of shape (n,) or (n,1).
+    :param y: Target variable (categorical or continuous). Array of shape (n,) or (n,1).
+    :param cond: Conditioning matrix Z of shape (n,k), or None. If provided, tests whether x ⟂ y | Z.
+    :param alpha: Regularization parameter (Ridge alpha, Logistic uses C=1/alpha).
 
-    Args:
-        x: Shape (n, ) or (n, 1). Predictor variable.
-        y: Shape (n, ) or (n, 1). Target variable.
-        cond: Conditioning matrix Z of shape (n, k), or None. If provided, tests whether x ⟂ y | Z.
-        alpha: Regularization parameter.
-        random_state: Optional random state for reproducibility.
+    :return: Two-sided p-value for the null hypothesis that the (partial)
+             distance correlation between x and y is zero.
 
-    Returns:
-        Two-sided p-value for the null hypothesis that the (partial) distance correlation between x and y is zero.
-
+    :note:
+        - The function uses Ridge regression for continuous variables and
+          Logistic regression for categorical variables to compute residuals.
+        - Distance correlation is calculated for residuals of `x` and `y` after
+          adjusting for the conditioning variables (if provided).
+        - The function returns a two-sided p-value based on the distance correlation
+          and a t-statistic approximation using degrees of freedom.
     """
     # Convert x and y to arrays and reshape to 2D
     x = np.asarray(x).reshape(-1, 1)
     y = np.asarray(y).reshape(-1, 1)
-    if np.issubdtype(y.dtype, np.integer):
-        y = y.astype(float)
 
-    assert x.shape[0] == y.shape[0], "x and y must have the same shape"
-
+    assert x.shape[0] == y.shape[0], "x and y must have the same number of samples"
     n = x.shape[0]
 
+    # Detect whether variables are categorical (integer) or continuous
+    x_is_class = np.issubdtype(x.dtype, np.integer)
+    y_is_class = np.issubdtype(y.dtype, np.integer)
+    if y_is_class:
+        y = y.astype(float)
+
     if cond is None:
-        # If no conditioning, use distance correlation between x and y
+        # Unconditional distance correlation
         dcor_value = dcor.u_distance_correlation_sqr(
             x=x,
             y=y,
             method="mergesort",
         )
-
     else:
         z = np.asarray(cond)
-        assert z.shape[0] == x.shape[0], "z and x must have the same shape"
+        assert z.shape[0] == n, "cond and x must have the same number of samples"
 
         # Add intercept
         z1 = np.column_stack([np.ones(n), z])
 
-        # Residuals of x ~ z
+        # ----- Residuals for y ~ Z -----
+        if y_is_class:
+            log_reg_y = LogisticRegression(C=1 / alpha)
+            log_reg_y.fit(z1, y.ravel())
+            prob_y = log_reg_y.predict_proba(z1)[:, 1].reshape(-1, 1)
+            ry = y - prob_y
+        else:
+            ridge_y = Ridge(alpha=alpha)
+            ridge_y.fit(z1, y.ravel())
+            ry = y - ridge_y.predict(z1).reshape(-1, 1)
 
-        ridge_x = Ridge(alpha=alpha)
-        ridge_x.fit(z1, x.ravel())
-        rx = x - ridge_x.predict(z1).reshape(-1, 1)
+        # ----- Residuals for x ~ Z -----
+        if x_is_class:
+            log_reg_x = LogisticRegression(C=1 / alpha)
+            log_reg_x.fit(z1, x.ravel())
+            prob_x = log_reg_x.predict_proba(z1)[:, 1].reshape(-1, 1)
+            rx = x - prob_x
+        else:
+            ridge_x = Ridge(alpha=alpha)
+            ridge_x.fit(z1, x.ravel())
+            rx = x - ridge_x.predict(z1).reshape(-1, 1)
 
-        # Residuals of y ~ z
-        ridge_y = Ridge(alpha=alpha)
-        ridge_y.fit(z1, y.ravel())
-        ry = y - ridge_y.predict(z1).reshape(-1, 1)
-
-        # Compute distance correlation between residuals rx and ry
+        # Distance correlation of residuals
         dcor_value = dcor.u_distance_correlation_sqr(
             x=rx,
             y=ry,
             method="mergesort",
         )
 
-    # Degrees of freedom
-    df = n * (n - 3) / 2
+    # Degrees of freedom approximation
+    df = n * (n - 3) / 2 - 1
 
-    # t-statistic for testing significance
-    t_stat = np.sqrt(df - 1) * dcor_value / np.sqrt(1 - dcor_value**2)
-    p = 1 - student_t.cdf(t_stat, df=df)
+    # t-statistic
+    t_stat = np.sqrt(df) * dcor_value / np.sqrt(1 - dcor_value**2)
 
-    return float(p)
+    # Two-sided p-value
+    p_value = 1 - student_t.cdf(abs(t_stat), df=df)
+
+    return float(p_value)
