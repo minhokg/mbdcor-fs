@@ -53,7 +53,7 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
 
         # ----- Residuals for y ~ Z -----
         if y_is_class:
-            log_reg_y = LogisticRegression(max_iter=1000, C=1 / alpha)
+            log_reg_y = LogisticRegression(C=1 / alpha)
             log_reg_y.fit(z1, y.ravel())
             prob_y = log_reg_y.predict_proba(z1)[:, 1].reshape(-1, 1)
             ry = y - prob_y
@@ -64,7 +64,7 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
 
         # ----- Residuals for x ~ Z -----
         if x_is_class:
-            log_reg_x = LogisticRegression(max_iter=1000, C=1 / alpha)
+            log_reg_x = LogisticRegression(C=1 / alpha)
             log_reg_x.fit(z1, x.ravel())
             prob_x = log_reg_x.predict_proba(z1)[:, 1].reshape(-1, 1)
             rx = x - prob_x
@@ -81,10 +81,10 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
         )
 
     # Degrees of freedom approximation
-    df = n * (n - 3) / 2
+    df = n * (n - 3) / 2 - 1
 
     # t-statistic
-    t_stat = np.sqrt(df - 1) * dcor_value / np.sqrt(1 - dcor_value**2)
+    t_stat = np.sqrt(df) * dcor_value / np.sqrt(1 - dcor_value**2)
 
     # Two-sided p-value
     p_value = 1 - student_t.cdf(abs(t_stat), df=df)
