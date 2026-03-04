@@ -83,6 +83,31 @@ def markov_boundary_selection_dcor(
     return _final_selection(feature_count)
 
 
+def _benjamini_hochberg(p_values, alpha):
+    """
+    Perform Benjamini–Hochberg False Discovery Rate (FDR) correction.
+
+    This procedure controls the expected proportion of false discoveries
+    (Type I errors) among the rejected hypotheses.
+
+    :param p_values: Array-like sequence of p-values corresponding to
+                     multiple hypothesis tests.
+    :param alpha: Desired false discovery rate level (e.g., 0.05).
+    :return: Boolean NumPy array indicating which hypotheses are rejected
+             after applying the Benjamini–Hochberg correction.
+    """
+    m = len(p_values)
+    sorted_idx = np.argsort(p_values)
+    sorted_p = p_values[sorted_idx]
+    thresholds = alpha * np.arange(1, m + 1) / m
+    below = sorted_p <= thresholds
+    rejected = np.zeros(m, dtype=bool)
+    if np.any(below):
+        max_idx = np.max(np.where(below))
+        rejected[sorted_idx[: max_idx + 1]] = True
+    return rejected
+
+
 def _get_marginal_dependent_features(
     x_subset: np.ndarray,
     y: np.ndarray,
@@ -103,17 +128,19 @@ def _get_marginal_dependent_features(
                              corresponding to columns in x_subset.
     :param alpha: Significance level for partial distance
                   correlation tests.
-    :param random_state: Seed used inside partial distance
-                         correlation testing.
     :return: List of original feature indices that show
              statistically significant marginal dependence
              with the target.
     """
-    selected: List[int] = []
-    for j, feature_idx in enumerate(selected_columns):
-        p = partial_dcor(x_subset[:, j], y, cond=None)
-        if p < alpha:
-            selected.append(int(feature_idx))
+    # Compute all p-values
+    p_values = np.array([partial_dcor(x_subset[:, j], y, cond=None) for j in range(x_subset.shape[1])])
+
+    # Apply Benjamini–Hochberg FDR
+    rejected = _benjamini_hochberg(p_values, alpha)
+
+    # Keep features that are rejected (significant)
+    selected = [int(selected_columns[j]) for j, rej in enumerate(rejected) if rej]
+
     return selected
 
 
@@ -123,6 +150,7 @@ def _test_conditional_independence(
     j: int,
     others: Sequence[int],
     alpha: float,
+    max_cond_set_size: int = 10,
 ) -> bool:
     """
     Test whether ``X_j`` is conditionally independent of ``Y``.
@@ -137,16 +165,23 @@ def _test_conditional_independence(
                    remaining selected features.
     :param alpha: Significance level for partial distance
                   correlation tests.
+    :param max_cond_set_size: Maximum number of running conditional tests.
 
     :return: True if ``X_j`` is conditionally independent of ``Y``
              given some subset of others; otherwise False.
     """
-    for ksize in range(len(others) + 1):
+    p_values = []
+    for ksize in range(min(len(others), max_cond_set_size) + 1):
         for cond_set in combinations(others, ksize):
             z = x[:, cond_set] if cond_set else None
             p = partial_dcor(x[:, j], y, cond=z)
-            if p >= alpha:
-                return True
+            p_values.append(p)
+
+    rejected = _benjamini_hochberg(np.array(p_values), alpha)
+
+    for is_rejected in rejected:
+        if not is_rejected:
+            return True
     return False
 
 
@@ -189,7 +224,7 @@ def _remove_conditional_independent_features(
                 selected_set.remove(j)
                 changed = True
 
-    return sorted(selected_set)
+    return list(selected_set)
 
 
 def _update_resample_schedule(
