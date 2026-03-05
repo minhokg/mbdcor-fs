@@ -53,7 +53,7 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
 
         # ----- Residuals for y ~ Z -----
         if y_is_class:
-            log_reg_y = LogisticRegression(C=1 / alpha)
+            log_reg_y = LogisticRegression(C=1 / alpha, l1_ratio=0)
             log_reg_y.fit(z1, y.ravel())
             prob_y = log_reg_y.predict_proba(z1)[:, 1].reshape(-1, 1)
             ry = y - prob_y
@@ -64,7 +64,7 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
 
         # ----- Residuals for x ~ Z -----
         if x_is_class:
-            log_reg_x = LogisticRegression(C=1 / alpha)
+            log_reg_x = LogisticRegression(C=1 / alpha, l1_ratio=0)
             log_reg_x.fit(z1, x.ravel())
             prob_x = log_reg_x.predict_proba(z1)[:, 1].reshape(-1, 1)
             rx = x - prob_x
