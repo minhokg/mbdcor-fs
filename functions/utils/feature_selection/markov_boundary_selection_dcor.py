@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Sequence
+from typing import List
 
 import numpy as np
 
@@ -68,8 +68,7 @@ def markov_boundary_selection_dcor(
             alpha=alpha,
         )
 
-        for feature in selected:
-            feature_count[feature] += 1
+        feature_count[selected] += 1
 
         feature_count, non_zero_columns, num_features_to_select = _update_resample_schedule(
             step=n + 1,
@@ -129,7 +128,7 @@ def _test_conditional_independence(
     x: np.ndarray,
     y: np.ndarray,
     j: int,
-    others: Sequence[int],
+    others: List[int],
     alpha: float,
 ) -> bool:
     """
@@ -145,7 +144,6 @@ def _test_conditional_independence(
                    remaining selected features.
     :param alpha: Significance level for partial distance
                   correlation tests.
-    :param max_cond_set_size: Maximum number of running conditional tests.
 
     :return: True if ``X_j`` is conditionally independent of ``Y``
              given some subset of others; otherwise False.
@@ -186,7 +184,7 @@ def _remove_conditional_independent_features(
     while changed:
         changed = False
         for j in list(selected_set):
-            others = [k for k in selected_set if k != j]
+            others = list(selected_set - {j})
             if _test_conditional_independence(
                 x=x,
                 y=y,
