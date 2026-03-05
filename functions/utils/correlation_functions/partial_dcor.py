@@ -38,12 +38,8 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
         y = y.astype(float)
 
     if cond is None:
-        # Unconditional distance correlation
-        dcor_value = dcor.u_distance_correlation_sqr(
-            x=x,
-            y=y,
-            method="mergesort",
-        )
+        rx = x
+        ry = y
     else:
         z = np.asarray(cond)
         assert z.shape[0] == n, "cond and x must have the same number of samples"
@@ -74,11 +70,11 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
             rx = x - ridge_x.predict(z1).reshape(-1, 1)
 
         # Distance correlation of residuals
-        dcor_value = dcor.u_distance_correlation_sqr(
-            x=rx,
-            y=ry,
-            method="mergesort",
-        )
+    dcor_value = dcor.u_distance_correlation_sqr(
+        x=rx,
+        y=ry,
+        method="mergesort",
+    )
 
     # Degrees of freedom approximation
     df = n * (n - 3) / 2 - 1
