@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import combinations
 from typing import List, Sequence
 
 import numpy as np
@@ -44,6 +43,8 @@ def markov_boundary_selection_dcor(
     non_zero_columns: List[int] = list(range(n_features))
     num_features_to_select = int(np.sqrt(n_features))
 
+    marginal_pvals = np.array([partial_dcor(x[:, j], y, cond=None) for j in range(n_features)])
+
     for n in range(n_resamples):
         if num_features_to_select <= 0 or len(non_zero_columns) == 0:
             break
@@ -54,10 +55,8 @@ def markov_boundary_selection_dcor(
             replace=False,
         )
 
-        x_subset = x[:, selected_columns]
         selected = _get_marginal_dependent_features(
-            x_subset=x_subset,
-            y=y,
+            marginal_pvals=marginal_pvals,
             selected_columns=selected_columns,
             alpha=alpha,
         )
@@ -109,39 +108,21 @@ def _benjamini_hochberg(p_values, alpha):
 
 
 def _get_marginal_dependent_features(
-    x_subset: np.ndarray,
-    y: np.ndarray,
+    marginal_pvals: np.ndarray,
     selected_columns: np.ndarray,
     alpha: float,
 ) -> List[int]:
-    """
-    Get features that exhibit marginal dependence with the target variable.
-
-    Phase 1: compute (partial) distance correlation p-values for each feature
-    in ``x_subset`` against ``y`` (no conditioning set) and keep those with
-    ``p < alpha``.
-
-    :param x_subset: Submatrix of selected features with shape
-                     (n_samples, len(selected_columns)).
-    :param y: Target variable of shape (n_samples,).
-    :param selected_columns: Array of original feature indices
-                             corresponding to columns in x_subset.
-    :param alpha: Significance level for partial distance
-                  correlation tests.
-    :return: List of original feature indices that show
-             statistically significant marginal dependence
-             with the target.
-    """
-    # Compute all p-values
-    p_values = np.array([partial_dcor(x_subset[:, j], y, cond=None) for j in range(x_subset.shape[1])])
+    """Get features that exhibit marginal dependence with the target variable."""
+    # Select p-values corresponding to the candidate columns
+    subset_pvals = marginal_pvals[selected_columns]
 
     # Apply Benjamini–Hochberg FDR
-    rejected = _benjamini_hochberg(p_values, alpha)
+    rejected = _benjamini_hochberg(subset_pvals, alpha)
 
-    # Keep features that are rejected (significant)
-    selected = [int(selected_columns[j]) for j, rej in enumerate(rejected) if rej]
+    # Map rejected subset indices back to original feature indices
+    selected = selected_columns[rejected]
 
-    return selected
+    return selected.astype(int).tolist()
 
 
 def _test_conditional_independence(
@@ -150,7 +131,6 @@ def _test_conditional_independence(
     j: int,
     others: Sequence[int],
     alpha: float,
-    max_cond_set_size: int = 10,
 ) -> bool:
     """
     Test whether ``X_j`` is conditionally independent of ``Y``.
@@ -170,19 +150,12 @@ def _test_conditional_independence(
     :return: True if ``X_j`` is conditionally independent of ``Y``
              given some subset of others; otherwise False.
     """
-    p_values = []
-    for ksize in range(min(len(others), max_cond_set_size) + 1):
-        for cond_set in combinations(others, ksize):
-            z = x[:, cond_set] if cond_set else None
-            p = partial_dcor(x[:, j], y, cond=z)
-            p_values.append(p)
+    if len(others) == 0:
+        return False
 
-    rejected = _benjamini_hochberg(np.array(p_values), alpha)
+    p = partial_dcor(x[:, j], y, cond=x[:, others])
 
-    for is_rejected in rejected:
-        if not is_rejected:
-            return True
-    return False
+    return p > alpha
 
 
 def _remove_conditional_independent_features(
