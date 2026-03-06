@@ -130,6 +130,7 @@ def _test_conditional_independence(
     j: int,
     others: List[int],
     alpha: float,
+    max_cond_set_size: int = 3,
 ) -> bool:
     """
     Test whether ``X_j`` is conditionally independent of ``Y``.
@@ -144,6 +145,7 @@ def _test_conditional_independence(
                    remaining selected features.
     :param alpha: Significance level for partial distance
                   correlation tests.
+    :param max_cond_set_size: Maximum number of conditional sets to consider.
 
     :return: True if ``X_j`` is conditionally independent of ``Y``
              given some subset of others; otherwise False.
@@ -151,8 +153,14 @@ def _test_conditional_independence(
     if len(others) == 0:
         return False
 
-    p = partial_dcor(x[:, j], y, cond=x[:, others])
+    # If the conditioning set is too large, randomly sample a subset
+    if len(others) > max_cond_set_size:
+        rng = np.random.default_rng(seed=j)  # reproducible
+        others_subset = rng.choice(others, size=max_cond_set_size, replace=False)
+    else:
+        others_subset = others
 
+    p = partial_dcor(x[:, j], y, cond=x[:, others_subset])
     return p > alpha
 
 
