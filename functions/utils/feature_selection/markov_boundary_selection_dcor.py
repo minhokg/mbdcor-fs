@@ -73,7 +73,6 @@ def markov_boundary_selection_dcor(
         feature_count, non_zero_columns, num_features_to_select = _update_resample_schedule(
             step=n + 1,
             n_resamples=n_resamples,
-            n_features=n_features,
             feature_count=feature_count,
             non_zero_columns=non_zero_columns,
         )
@@ -209,7 +208,6 @@ def _remove_conditional_independent_features(
 def _update_resample_schedule(
     step: int,
     n_resamples: int,
-    n_features: int,
     feature_count: np.ndarray,
     non_zero_columns: List[int],
 ) -> tuple[np.ndarray, List[int], int]:
@@ -222,7 +220,6 @@ def _update_resample_schedule(
 
     :param step: Current resampling iteration (1-indexed).
     :param n_resamples: Total number of resampling iterations.
-    :param n_features: Total number of features.
     :param feature_count: Array of length n_features containing
                           current selection counts.
     :param non_zero_columns: List of feature indices with
@@ -234,18 +231,15 @@ def _update_resample_schedule(
                next iteration.
     """
     period = max(1, int(n_resamples * 0.1))
-    if (step % period) != 0:
-        return (
-            feature_count,
-            non_zero_columns,
-            int(np.sqrt(len(non_zero_columns))) if non_zero_columns else 0,
-        )
+    if step % period != 0:
+        num_features_to_select = int(np.sqrt(len(non_zero_columns))) if non_zero_columns else 0
+        return feature_count, non_zero_columns, num_features_to_select
 
-    non_zero_columns = [i for i, count in enumerate(feature_count) if count > 0]
+    non_zero_columns = np.flatnonzero(feature_count).tolist()
     num_features_to_select = int(np.sqrt(len(non_zero_columns))) if non_zero_columns else 0
 
     if step != n_resamples:
-        feature_count = np.zeros(n_features)
+        feature_count.fill(0)
 
     return feature_count, non_zero_columns, num_features_to_select
 
@@ -264,16 +258,16 @@ def _final_selection(feature_count: np.ndarray) -> List[int]:
              to their final selection counts. Returns an
              empty dictionary if all counts are zero.
     """
-    non_zero_values = feature_count[feature_count > 0]
-    if non_zero_values.size == 0:
+    non_zero_idx = np.flatnonzero(feature_count)
+    if non_zero_idx.size == 0:
         return []
 
+    non_zero_values = feature_count[non_zero_idx]
     std = float(np.std(non_zero_values))
     threshold_diff = 2.0 * std
 
-    min_non_zero = float(np.min(non_zero_values))
-    if min_non_zero > threshold_diff:
-        return [int(i) for i, c in enumerate(feature_count) if c > 0]
+    if np.min(non_zero_values) > threshold_diff:
+        return non_zero_idx.tolist()
 
-    median_non_zero = float(np.median(non_zero_values))
-    return [int(i) for i, c in enumerate(feature_count) if c > median_non_zero]
+    median_non_zero = np.median(non_zero_values)
+    return non_zero_idx[non_zero_values > median_non_zero].tolist()
