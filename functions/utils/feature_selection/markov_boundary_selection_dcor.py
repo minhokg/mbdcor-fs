@@ -11,7 +11,6 @@ def markov_boundary_selection_dcor(
     x: np.ndarray,
     y: np.ndarray,
     alpha: float = 0.01,
-    n_resamples: int = 500,
     random_state: int = 42,
 ) -> List[int]:
     """
@@ -28,8 +27,6 @@ def markov_boundary_selection_dcor(
     :param y: Target variable of shape ``(n_samples,)``.
     :param alpha: Significance level used in (partial) distance correlation
                   independence tests. Default is ``0.01``.
-    :param n_resamples: Number of resampling iterations used to estimate
-                        feature stability. Default is ``500``.
     :param random_state: Seed for the random number generator to ensure
                          reproducibility. Default is ``42``.
     :returns: A dictionary mapping feature indices to their selection
@@ -45,6 +42,7 @@ def markov_boundary_selection_dcor(
 
     marginal_pvals = np.array([partial_dcor(x[:, j], y, cond=None) for j in range(n_features)])
 
+    n_resamples = int(10 * n_features)
     for n in range(n_resamples):
         if num_features_to_select <= 0 or len(non_zero_columns) == 0:
             break
@@ -129,7 +127,7 @@ def _test_conditional_independence(
     j: int,
     others: List[int],
     alpha: float,
-    max_cond_set_size: int = 3,
+    random_state: int = 42,
 ) -> bool:
     """
     Test whether ``X_j`` is conditionally independent of ``Y``.
@@ -144,7 +142,7 @@ def _test_conditional_independence(
                    remaining selected features.
     :param alpha: Significance level for partial distance
                   correlation tests.
-    :param max_cond_set_size: Maximum number of conditional sets to consider.
+    :param random_state: Seed for the random number generator to ensure
 
     :return: True if ``X_j`` is conditionally independent of ``Y``
              given some subset of others; otherwise False.
@@ -152,9 +150,10 @@ def _test_conditional_independence(
     if len(others) == 0:
         return False
 
+    max_cond_set_size = max(1, int(np.sqrt(len(others))))
     # If the conditioning set is too large, randomly sample a subset
     if len(others) > max_cond_set_size:
-        rng = np.random.default_rng(seed=j)  # reproducible
+        rng = np.random.default_rng(seed=random_state)  # reproducible
         others_subset = rng.choice(others, size=max_cond_set_size, replace=False)
     else:
         others_subset = others
