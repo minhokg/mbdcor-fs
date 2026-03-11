@@ -1,6 +1,7 @@
 import dcor
 import numpy as np
 from scipy.stats import t
+from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression, Ridge
 
 
@@ -44,12 +45,16 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
         z = np.asarray(cond)
         assert z.shape[0] == n, "cond and x must have the same number of samples"
 
+        if z.shape[1] > 5:
+            pca = PCA(n_components=min(5, z.shape[1]))
+            z = pca.fit_transform(z)
+
         # Add intercept
         z1 = np.column_stack([np.ones(n), z])
 
         # ----- Residuals for y ~ Z -----
         if y_is_class:
-            log_reg_y = LogisticRegression(C=1 / alpha, l1_ratio=0, max_iter=1000, solver="lbfgs")
+            log_reg_y = LogisticRegression(C=1 / alpha, l1_ratio=0, solver="lbfgs")
             log_reg_y.fit(z1, y.ravel())
             prob_y = log_reg_y.predict_proba(z1)[:, 1].reshape(-1, 1)
             ry = y - prob_y
@@ -60,7 +65,7 @@ def partial_dcor(x: np.ndarray, y: np.ndarray, cond: np.ndarray = None, alpha: f
 
         # ----- Residuals for x ~ Z -----
         if x_is_class:
-            log_reg_x = LogisticRegression(C=1 / alpha, l1_ratio=0, max_iter=1000, solver="lbfgs")
+            log_reg_x = LogisticRegression(C=1 / alpha, l1_ratio=0, solver="lbfgs")
             log_reg_x.fit(z1, x.ravel())
             prob_x = log_reg_x.predict_proba(z1)[:, 1].reshape(-1, 1)
             rx = x - prob_x
