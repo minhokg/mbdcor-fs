@@ -40,6 +40,12 @@ def markov_boundary_selection_dcor(
     non_zero_columns: List[int] = list(range(n_features))
     num_features_to_select = int(np.sqrt(n_features))
 
+    # scale the x
+    mean = np.mean(x, axis=0)
+    std = np.std(x, axis=0)
+    std[std == 0] = 1.0
+    x = (x - mean) / std
+
     marginal_pvals = np.array([partial_dcor(x[:, j], y, cond=None) for j in range(n_features)])
 
     n_resamples = int(10 * n_features)
@@ -185,21 +191,17 @@ def _remove_conditional_independent_features(
              iterative pruning.
     """
     selected_set = set(selected)
-    changed = True
 
-    while changed:
-        changed = False
-        for j in list(selected_set):
-            others = list(selected_set - {j})
-            if _test_conditional_independence(
-                x=x,
-                y=y,
-                j=j,
-                others=others,
-                alpha=alpha,
-            ):
-                selected_set.remove(j)
-                changed = True
+    for j in list(selected_set):
+        others = list(selected_set - {j})
+        if _test_conditional_independence(
+            x=x,
+            y=y,
+            j=j,
+            others=others,
+            alpha=alpha,
+        ):
+            selected_set.remove(j)
 
     return list(selected_set)
 
