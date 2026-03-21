@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Sequence, Tuple
@@ -9,12 +10,12 @@ import numpy as np
 import pandas as pd
 
 from functions.utils.base.models import RunResult
-from functions.utils.feature_selection.boruta_selection import boruta_selection
+from functions.utils.feature_selection.boruta_selection_classifier import boruta_selection_classifier
 from functions.utils.feature_selection.markov_boundary_selection_dcor import markov_boundary_selection_dcor
 from functions.utils.train_evaluate.train_evaluate_xgboost_classifier import train_evaluate_xgboost_classifier
 
 
-def simulation_mbdcor(
+def synthetic_simulation(
     p_list: Sequence[int] = (50, 100, 200, 300, 500),
     n_sims: int = 100,
     alpha_mb: float = 0.05,
@@ -64,6 +65,7 @@ def simulation_mbdcor(
             nsel_mean=("n_selected", "mean"),
             nsel_std=("n_selected", "std"),
             log_loss_mean=("log_loss", "mean"),
+            log_loss_std=("log_loss", "std"),
         )
         .sort_values(["p", "method"])
         .reset_index(drop=True)
@@ -172,20 +174,18 @@ def _generate_data(
     n: int,
     p: int,
     rng: np.random.Generator,
-    min_true: int = 3,
-    max_true: int = 12,
+    n_true: int = 10,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Generate a synthetic binary classification dataset with correlated features.
 
-    The target variable is constructed using a randomly selected subset
+    The true variable is constructed using a randomly selected subset
     of features and random nonlinear transformations.
 
     :param n: Number of samples.
     :param p: Number of features.
     :param rng: Random number generator.
-    :param min_true: Minimum number of predictive features.
-    :param max_true: Maximum number of predictive features.
+    :param n_true: Number of true variables.
     :return: Tuple (X, y, true_features) where
              X is the feature matrix,
              y is the binary target,
@@ -197,9 +197,6 @@ def _generate_data(
 
     x_uncorr = rng.normal(size=(n, p))
     x = x_uncorr @ chol.T
-
-    # random number of true predictors
-    n_true = rng.integers(min_true, min(max_true, p) + 1)
 
     # select true feature indices
     true_features = rng.choice(p, size=n_true, replace=False)
@@ -295,7 +292,7 @@ def _run_one_setting(
 
     # boruta feature selection
     t0 = time.perf_counter()
-    boruta_sel_list = boruta_selection(x=x, y=y)
+    boruta_sel_list = boruta_selection_classifier(x=x, y=y)
     t1 = time.perf_counter()
     if len(boruta_sel_list) > 0:
         log_loss_boruta = train_evaluate_xgboost_classifier(x=x[:, boruta_sel_list], y=y)
@@ -353,7 +350,15 @@ def plot_runtime(summary_df: pd.DataFrame, save_path: str) -> None:
     plt.figure(figsize=(8, 5))
 
     for method, df_method in summary_df.groupby("method"):
-        plt.plot(df_method["p"], df_method["time_mean"], marker="o", label=method)
+        plt.errorbar(
+            df_method["p"],
+            df_method["time_mean"],
+            yerr=df_method["time_std"],
+            marker="o",
+            label=method,
+            capsize=4,
+            linestyle="-",
+        )
 
     plt.xlabel("Number of Parameters (p)")
     plt.ylabel("Mean Runtime (seconds)")
@@ -377,7 +382,15 @@ def plot_logloss(summary_df: pd.DataFrame, save_path: str) -> None:
     plt.figure(figsize=(8, 5))
 
     for method, df_method in summary_df.groupby("method"):
-        plt.plot(df_method["p"], df_method["log_loss_mean"], marker="o", label=method)
+        plt.errorbar(
+            df_method["p"],
+            df_method["log_loss_mean"],
+            yerr=df_method["log_loss_std"],  # <- error bars for standard deviation
+            marker="o",
+            label=method,
+            capsize=4,  # small line at the end of error bars
+            linestyle="-",  # solid line connecting points
+        )
 
     plt.xlabel("Number of Parameters (p)")
     plt.ylabel("Mean Log Loss")
@@ -390,12 +403,79 @@ def plot_logloss(summary_df: pd.DataFrame, save_path: str) -> None:
     plt.show()
 
 
+def plot_nsel(summary_df: pd.DataFrame, save_path: str) -> None:
+    """
+    Plot the relationship between the number of parameters and the mean number of selected features for each feature selection method, including standard deviation as error bars.
+
+    :param summary_df: DataFrame containing aggregated simulation results.
+    :param save_path: Path to save the plot to.
+    :return: None.
+    """
+    plt.figure(figsize=(8, 5))
+
+    for method, df_method in summary_df.groupby("method"):
+        plt.errorbar(
+            df_method["p"],
+            df_method["nsel_mean"],
+            yerr=df_method["nsel_std"],  # error bars
+            marker="o",
+            label=method,
+            capsize=4,
+            linestyle="-",
+        )
+
+    plt.xlabel("Number of Parameters (p)")
+    plt.ylabel("Mean Number of Selected Features")
+    plt.title("Feature Selection: Number of Selected Features (Mean ± Std)")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+
+def plot_recall(summary_df: pd.DataFrame, save_path: str) -> None:
+    """
+    Plot the relationship between the number of parameters and the mean recall for each feature selection method, including standard deviation as error bars.
+
+    :param summary_df: DataFrame containing aggregated simulation results.
+    :param save_path: Path to save the plot to.
+    :return: None.
+    """
+    plt.figure(figsize=(8, 5))
+
+    for method, df_method in summary_df.groupby("method"):
+        plt.errorbar(
+            df_method["p"],
+            df_method["recall_mean"],
+            yerr=df_method["recall_std"],  # error bars
+            marker="o",
+            label=method,
+            capsize=4,
+            linestyle="-",
+        )
+
+    plt.xlabel("Number of Parameters (p)")
+    plt.ylabel("Mean Recall (%)")
+    plt.title("Feature Selection Recall (Mean ± Std)")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+
 if __name__ == "__main__":
-    raw, summary = simulation_mbdcor(
+    raw, summary = synthetic_simulation(
         p_list=[50, 100, 150, 200, 250],
         n_sims=100,
     )
-    raw.to_csv("raw_results.csv", index=False)
-    summary.to_csv("summary_results" ".csv", index=False)
-    plot_runtime(summary, save_path="runtime_vs_p.png")
-    plot_logloss(summary, save_path="logloss_vs_p.png")
+    os.makedirs("results", exist_ok=True)
+    raw.to_csv("results/summary_results_error_bar_2.csv", index=False)
+    summary.to_csv("results/summary_results_error_bar_2" ".csv", index=False)
+    plot_runtime(summary, save_path="results/runtime_vs_p_error_bar_2.png")
+    plot_logloss(summary, save_path="results/logloss_vs_p_error_bar_2.png")
+    plot_nsel(summary, save_path="results/nsel_vs_p_2.png")
+    plot_recall(summary, save_path="results/recall_vs_p_2.png")
