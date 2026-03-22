@@ -157,12 +157,8 @@ def _test_conditional_independence(
         return False
 
     max_cond_set_size = max(1, int(np.sqrt(len(others))))
-    # If the conditioning set is too large, randomly sample a subset
-    if len(others) > max_cond_set_size:
-        rng = np.random.default_rng(seed=random_state)  # reproducible
-        others_subset = rng.choice(others, size=max_cond_set_size, replace=False)
-    else:
-        others_subset = others
+    rng = np.random.default_rng(seed=random_state)  # reproducible
+    others_subset = rng.choice(others, size=max_cond_set_size, replace=False)
 
     p = partial_dcor(x[:, j], y, cond=x[:, others_subset])
     return p > alpha
