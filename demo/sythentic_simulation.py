@@ -18,7 +18,7 @@ from functions.utils.train_evaluate.train_evaluate_xgboost_classifier import tra
 def synthetic_simulation(
     p_list: Sequence[int] = (50, 100, 200, 300, 500),
     n_sims: int = 100,
-    alpha_mb: float = 0.05,
+    alpha_mb: float = 0.01,
     max_workers: int | None = None,
     random_seed: int = 42,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -472,10 +472,10 @@ if __name__ == "__main__":
         p_list=[50, 100, 150, 200, 250],
         n_sims=100,
     )
-    os.makedirs("results", exist_ok=True)
-    raw.to_csv("results/summary_results_error_bar_2.csv", index=False)
-    summary.to_csv("results/summary_results_error_bar_2" ".csv", index=False)
-    plot_runtime(summary, save_path="results/runtime_vs_p_error_bar_2.png")
-    plot_logloss(summary, save_path="results/logloss_vs_p_error_bar_2.png")
-    plot_nsel(summary, save_path="results/nsel_vs_p_2.png")
-    plot_recall(summary, save_path="results/recall_vs_p_2.png")
+    os.makedirs("results/synthetic_simulation", exist_ok=True)
+    raw.to_csv("results/synthetic_simulation/raw.csv", index=False)
+    summary.to_csv("results/synthetic_simulation/summary.csv", index=False)
+    plot_runtime(summary, save_path="results/synthetic_simulation/runtime_vs_p.png")
+    plot_logloss(summary, save_path="results/synthetic_simulation/logloss_vs_p.png")
+    plot_nsel(summary, save_path="results/synthetic_simulation/nsel_vs_p.png")
+    plot_recall(summary, save_path="results/synthetic_simulation/recall_vs_p.png")
