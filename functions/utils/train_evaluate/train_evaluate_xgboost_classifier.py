@@ -1,43 +1,61 @@
 import numpy as np
 from sklearn.metrics import log_loss
-from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
 
-def train_evaluate_xgboost_classifier(x: np.ndarray, y: np.ndarray) -> float:
+def train_evaluate_xgboost_classifier(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_test: np.ndarray,
+    y_test: np.ndarray,
+    random_state: int = 42,
+) -> float:
     """
-    Train an XGBoost classifier on input features and evaluate its performance using log loss.
+    Train an XGBoost classifier on the training set and evaluate log loss on the test set.
 
-    :param x: Input feature matrix of shape (n_samples, n_features). Can be 1D or 2D.
-    :param y: Target labels of shape (n_samples,). Should be categorical (binary or multiclass).
-    :return: Log loss of the classifier on the test set.
+    :param x_train: Training feature matrix of shape (n_train_samples, n_features).
+    :param y_train: Training target vector of shape (n_train_samples,).
+    :param x_test: Test feature matrix of shape (n_test_samples, n_features).
+    :param y_test: Test target vector of shape (n_test_samples,).
+    :param random_state: Random seed for reproducibility.
+    :return: Log loss on the test set.
     """
-    # Ensure x is 2D
-    if x.ndim == 1:
-        x = x.reshape(-1, 1)
+    x_train = np.asarray(x_train)
+    y_train = np.asarray(y_train)
+    x_test = np.asarray(x_test)
+    y_test = np.asarray(y_test)
 
-    # Check if there are any features
-    if x.shape[1] == 0:
-        raise ValueError("Input x has no features. Cannot train XGBoost.")
+    # Ensure feature matrices are 2D
+    if x_train.ndim == 1:
+        x_train = x_train.reshape(-1, 1)
+    if x_test.ndim == 1:
+        x_test = x_test.reshape(-1, 1)
 
-    # Split the data into train and test sets
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
-
-    # Check that training data is not empty
+    # Basic validation
+    if x_train.shape[1] == 0:
+        raise ValueError("x_train has no features. Cannot train XGBoost.")
+    if x_test.shape[1] != x_train.shape[1]:
+        raise ValueError("x_test must have the same number of features as x_train.")
     if x_train.shape[0] == 0 or y_train.shape[0] == 0:
-        raise ValueError("Training data is empty after train-test split.")
+        raise ValueError("Training data is empty.")
+    if x_test.shape[0] == 0 or y_test.shape[0] == 0:
+        raise ValueError("Test data is empty.")
+    if x_train.shape[0] != y_train.shape[0]:
+        raise ValueError("x_train and y_train must have the same number of samples.")
+    if x_test.shape[0] != y_test.shape[0]:
+        raise ValueError("x_test and y_test must have the same number of samples.")
 
-    # Initialize the XGBClassifier
-    model = XGBClassifier(eval_metric="logloss")
+    # Initialize model
+    model = XGBClassifier(
+        eval_metric="logloss",
+        random_state=random_state,
+    )
 
-    # Fit the model
+    # Fit on training data only
     model.fit(x_train, y_train)
 
-    # Predict probabilities on the test set
+    # Predict probabilities on test data
     y_pred_prob = model.predict_proba(x_test)
 
-    # Calculate log loss
-    log_loss_value = log_loss(y_test, y_pred_prob, labels=model.classes_)
-
-    # Return the log loss
-    return log_loss_value
+    # Compute log loss on test data
+    return float(log_loss(y_test, y_pred_prob, labels=model.classes_))

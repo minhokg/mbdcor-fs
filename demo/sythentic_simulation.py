@@ -8,6 +8,7 @@ from typing import List, Sequence, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from functions.utils.base.models import RunResult
 from functions.utils.feature_selection.boruta_selection_classifier import boruta_selection_classifier
@@ -288,6 +289,8 @@ def _run_one_setting(
 
     x, y, true_features = _generate_data(n=n, p=p, rng=rng)
 
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+
     out: List[RunResult] = []
 
     # boruta feature selection
@@ -295,7 +298,7 @@ def _run_one_setting(
     boruta_sel_list = boruta_selection_classifier(x=x, y=y)
     t1 = time.perf_counter()
     if len(boruta_sel_list) > 0:
-        log_loss_boruta = train_evaluate_xgboost_classifier(x=x[:, boruta_sel_list], y=y)
+        log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel_list], y_train=y_train, x_test=x[:, boruta_sel_list], y_test=y)
 
         out.append(
             RunResult(
@@ -320,7 +323,7 @@ def _run_one_setting(
     )
     t1 = time.perf_counter()
     if len(mb_sel_list) > 0:
-        log_loss_mbdcor = train_evaluate_xgboost_classifier(x=x[:, mb_sel_list], y=y)
+        log_loss_mbdcor = train_evaluate_xgboost_classifier(x_train=x_train[:, mb_sel_list], y_train=y_train, x_test=x_test[:, mb_sel_list], y_test=y_test)
 
         out.append(
             RunResult(
