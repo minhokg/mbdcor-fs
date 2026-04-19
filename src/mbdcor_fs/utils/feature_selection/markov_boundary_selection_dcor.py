@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from functions.utils.correlation_functions.partial_dcor import partial_dcor
+from src.mbdcor_fs.utils.correlation_functions.partial_dcor import partial_dcor
 
 
 def markov_boundary_selection_dcor(

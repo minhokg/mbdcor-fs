@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from functions.utils.base.models import RunResult
-from functions.utils.feature_selection.boruta_selection_classifier import boruta_selection_classifier
-from functions.utils.feature_selection.markov_boundary_selection_dcor import markov_boundary_selection_dcor
-from functions.utils.train_evaluate.train_evaluate_xgboost_classifier import train_evaluate_xgboost_classifier
+from mbdcor_fs.utils.base.models import RunResult
+from mbdcor_fs.utils.feature_selection.boruta_selection_classifier import boruta_selection_classifier
+from mbdcor_fs.utils.feature_selection.markov_boundary_selection_dcor import markov_boundary_selection_dcor
+from mbdcor_fs.utils.train_evaluate.train_evaluate_xgboost_classifier import train_evaluate_xgboost_classifier
 
 
 def synthetic_simulation(
@@ -475,10 +475,10 @@ if __name__ == "__main__":
         p_list=[50, 100, 150, 200, 250],
         n_sims=100,
     )
-    os.makedirs("results/synthetic_simulation", exist_ok=True)
+    os.makedirs("../../../../demo/results/synthetic_simulation", exist_ok=True)
     raw.to_csv("results/synthetic_simulation/raw.csv", index=False)
     summary.to_csv("results/synthetic_simulation/summary.csv", index=False)
-    plot_runtime(summary, save_path="results/synthetic_simulation/runtime_vs_p.png")
-    plot_logloss(summary, save_path="results/synthetic_simulation/logloss_vs_p.png")
-    plot_nsel(summary, save_path="results/synthetic_simulation/nsel_vs_p.png")
-    plot_recall(summary, save_path="results/synthetic_simulation/recall_vs_p.png")
+    plot_runtime(summary, save_path="../../../../demo/results/synthetic_simulation/runtime_vs_p.png")
+    plot_logloss(summary, save_path="../../../../demo/results/synthetic_simulation/logloss_vs_p.png")
+    plot_nsel(summary, save_path="../../../../demo/results/synthetic_simulation/nsel_vs_p.png")
+    plot_recall(summary, save_path="../../../../demo/results/synthetic_simulation/recall_vs_p.png")
