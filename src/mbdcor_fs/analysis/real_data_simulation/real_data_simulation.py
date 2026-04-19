@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from mbdcor_fs.utils.feature_selection.boruta_selection_classifier import boruta_selection_classifier
@@ -44,20 +45,6 @@ def load_wdbc(path: str) -> Tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
-def _bootstrap_train_oob_test_split(
-    n_samples: int,
-    rng: np.random.Generator,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Draw bootstrap training indices and return the out-of-bootstrap test indices."""
-    train_idx = rng.choice(n_samples, size=n_samples, replace=True)
-
-    in_bag_mask = np.zeros(n_samples, dtype=bool)
-    in_bag_mask[train_idx] = True
-    test_idx = np.where(~in_bag_mask)[0]
-
-    return train_idx, test_idx
-
-
 def _run_one_real(
     x: np.ndarray,
     y: np.ndarray,
@@ -80,25 +67,8 @@ def _run_one_real(
 
     :return: List of result dictionaries for each method.
     """
-    rng = np.random.default_rng(random_state + sim)
-
-    # -------------------------
-    # Bootstrap sampling
-    # -------------------------
-    train_idx, test_idx = _bootstrap_train_oob_test_split(n_samples=len(y), rng=rng)
-
-    if len(test_idx) == 0:
-        return []
-
-    x_train_raw = x[train_idx]
-    y_train = y[train_idx]
-    x_test_raw = x[test_idx]
-    y_test = y[test_idx]
-
-    # fit scaler on training only
-    scaler = StandardScaler()
-    x_train = scaler.fit_transform(x_train_raw)
-    x_test = scaler.transform(x_test_raw)
+    # split data into train and test
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_state + sim)
 
     results: List[Dict[str, Any]] = []
 
