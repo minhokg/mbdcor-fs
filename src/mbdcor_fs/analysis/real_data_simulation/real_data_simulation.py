@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
@@ -182,11 +183,15 @@ def real_data_experiment(
     """
     all_rows = []
 
+    logging.info(f"Starting real data experiment with {n_sims} simulations...")
+
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
         futures = [ex.submit(_run_one_real, x, y, sim, alpha_mb) for sim in range(n_sims)]
 
-        for fut in as_completed(futures):
-            all_rows.extend(fut.result())
+        for i, fut in enumerate(as_completed(futures), start=1):
+            result = fut.result()
+            all_rows.extend(result)
+            logging.info(f"Completed simulation {i}/{n_sims} (returned {len(result)} rows)")
 
     raw_df = pd.DataFrame(all_rows)
 
@@ -214,5 +219,7 @@ if __name__ == "__main__":
     )
 
     logging.info(summary)
-    raw.to_csv("results/real_data_simulation/raw_wbdc.csv", index=False)
-    summary.to_csv("results/real_data_simulation/summary_wbdc.csv", index=False)
+    root_path = "results/real_data_simulation"
+    os.makedirs(root_path, exist_ok=True)
+    raw.to_csv(root_path + "/raw_wbdc.csv", index=False)
+    summary.to_csv(root_path + "/summary_wbdc.csv", index=False)
