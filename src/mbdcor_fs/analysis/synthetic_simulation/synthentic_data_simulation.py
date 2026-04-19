@@ -475,10 +475,10 @@ if __name__ == "__main__":
         p_list=[50, 100, 150, 200, 250],
         n_sims=100,
     )
-    os.makedirs("../../../../demo/results/synthetic_simulation", exist_ok=True)
+    os.makedirs("results/synthetic_simulation", exist_ok=True)
     raw.to_csv("results/synthetic_simulation/raw.csv", index=False)
     summary.to_csv("results/synthetic_simulation/summary.csv", index=False)
-    plot_runtime(summary, save_path="../../../../demo/results/synthetic_simulation/runtime_vs_p.png")
-    plot_logloss(summary, save_path="../../../../demo/results/synthetic_simulation/logloss_vs_p.png")
-    plot_nsel(summary, save_path="../../../../demo/results/synthetic_simulation/nsel_vs_p.png")
-    plot_recall(summary, save_path="../../../../demo/results/synthetic_simulation/recall_vs_p.png")
+    plot_runtime(summary, save_path="results/synthetic_simulation/runtime_vs_p.png")
+    plot_logloss(summary, save_path="results/synthetic_simulation/logloss_vs_p.png")
+    plot_nsel(summary, save_path="results/synthetic_simulation/nsel_vs_p.png")
+    plot_recall(summary, save_path="results/synthetic_simulation/recall_vs_p.png")
