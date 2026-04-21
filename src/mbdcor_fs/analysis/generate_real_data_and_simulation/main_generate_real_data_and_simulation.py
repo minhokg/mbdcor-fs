@@ -71,23 +71,22 @@ def _run_one_real(
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_state + sim)
 
     results: List[Dict[str, Any]] = []
-
     # -------------------------
     # Boruta
     # -------------------------
     t0 = time.perf_counter()
-    boruta_sel = boruta_selection_classifier(x=x_train, y=y_train)
+    boruta_sel_list = boruta_selection_classifier(x=x_train, y=y_train)
     t1 = time.perf_counter()
 
-    if len(boruta_sel) > 0:
-        log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel], y_train=y_train, x_test=x_test[:, boruta_sel], y_test=y_test, random_state=random_state + sim)
+    if len(boruta_sel_list) > 0:
+        log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel_list], y_train=y_train, x_test=x_test[:, boruta_sel_list], y_test=y_test, random_state=random_state + sim)
 
         results.append(
             {
                 "method": "Boruta",
                 "sim": sim,
                 "runtime_s": t1 - t0,
-                "n_selected": len(boruta_sel),
+                "n_selected": len(boruta_sel_list),
                 "log_loss": log_loss_boruta,
             }
         )
@@ -96,7 +95,7 @@ def _run_one_real(
     # MBDcor
     # -------------------------
     t0 = time.perf_counter()
-    mb_sel = markov_boundary_selection_dcor(
+    mb_sel_list = markov_boundary_selection_dcor(
         x=x_train,
         y=y_train,
         alpha=alpha_mb,
@@ -104,11 +103,11 @@ def _run_one_real(
     )
     t1 = time.perf_counter()
 
-    if len(mb_sel) > 0:
+    if len(mb_sel_list) > 0:
         log_loss_mbdcor = train_evaluate_xgboost_classifier(
-            x_train=x_train[:, mb_sel],
+            x_train=x_train[:, mb_sel_list],
             y_train=y_train,
-            x_test=x_test[:, mb_sel],
+            x_test=x_test[:, mb_sel_list],
             y_test=y_test,
             random_state=random_state + sim,
         )
@@ -118,7 +117,7 @@ def _run_one_real(
                 "method": "MBDcor",
                 "sim": sim,
                 "runtime_s": t1 - t0,
-                "n_selected": len(mb_sel),
+                "n_selected": len(mb_sel_list),
                 "log_loss": log_loss_mbdcor,
             }
         )
