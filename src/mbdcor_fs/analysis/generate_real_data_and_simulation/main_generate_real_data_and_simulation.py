@@ -38,14 +38,10 @@ def load_wdbc(path: str) -> Tuple[np.ndarray, np.ndarray]:
     x = df.drop(columns=["diagnosis"]).values
     y = df["diagnosis"].values
 
-    # scale features
-    scaler = StandardScaler()
-    x = scaler.fit_transform(x)
-
     return x, y
 
 
-def _run_one_real(
+def _run_one_real_data_experiment(
     x: np.ndarray,
     y: np.ndarray,
     sim: int,
@@ -69,6 +65,11 @@ def _run_one_real(
     """
     # split data into train and test
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_state + sim)
+
+    # scale features
+    scaler = StandardScaler()
+    x_train = scaler.fit_transform(x_train)
+    x_test = scaler.transform(x_test)
 
     results: List[Dict[str, Any]] = []
     # -------------------------
@@ -155,12 +156,12 @@ def real_data_experiment(
     logging.info(f"Starting real data experiment with {n_sims} simulations...")
 
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
-        futures = [ex.submit(_run_one_real, x, y, sim, alpha_mb) for sim in range(n_sims)]
+        futures = [ex.submit(_run_one_real_data_experiment, x, y, sim, alpha_mb) for sim in range(n_sims)]
 
         for i, fut in enumerate(as_completed(futures), start=1):
             result = fut.result()
             all_rows.extend(result)
-            logging.info(f"Completed simulation {i}/{n_sims} (returned {len(result)} rows)")
+            logging.info(f"Completed simulation {i}/{n_sims}")
 
     raw_df = pd.DataFrame(all_rows)
 
