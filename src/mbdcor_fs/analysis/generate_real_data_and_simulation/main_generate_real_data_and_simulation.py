@@ -77,7 +77,7 @@ def _run_one_real_data_experiment(
     # Boruta
     # -------------------------
     t0 = time.perf_counter()
-    boruta_sel_list = boruta_selection_classifier(x=x_train, y=y_train)
+    boruta_sel_list = boruta_selection_classifier(x_train=x_train, y_train=y_train)
     t1 = time.perf_counter()
 
     if len(boruta_sel_list) > 0:
@@ -131,7 +131,7 @@ def real_data_experiment(
     x: np.ndarray,
     y: np.ndarray,
     n_sims: int = 50,
-    alpha_mb: float = 0.05,
+    alpha_mb: float = 0.01,
     max_workers: int | None = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
