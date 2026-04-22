@@ -49,11 +49,12 @@ def _run_one_real_data_experiment(
     random_state: int = 42,
 ) -> List[Dict[str, Any]]:
     """
-    Execute one Monte Carlo iteration using bootstrap sampling.
+    Execute one Monte Carlo iteration using a random train/test split.
 
-    This function performs bootstrap resampling on the dataset, applies
-    feature selection using Boruta and MBDcor, and evaluates the selected
-    features using an XGBoost classifier.
+    This function splits the dataset into training and test sets, applies
+    feature selection using Boruta and MBDcor on the training data, and
+    evaluates the selected features using an XGBoost classifier on the
+    held-out test data.
 
     :param x: Feature matrix of shape (n_samples, n_features).
     :param y: Binary target vector of shape (n_samples,).
@@ -134,12 +135,12 @@ def real_data_experiment(
     max_workers: int | None = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Run Monte Carlo experiments on real data using bootstrap resampling.
+    Run repeated Monte Carlo experiments on real data using random train/test splits.
 
-    This function executes multiple simulations in parallel, where each
-    simulation applies feature selection and model evaluation on a bootstrap
-    sample of the dataset. The results are aggregated to compute summary
-    statistics for each method.
+    This function executes multiple simulations in parallel. In each
+    simulation, the dataset is randomly split into training and test sets,
+    feature selection is applied on the training data, and predictive
+    performance is evaluated on the test data.
 
     :param x: Feature matrix of shape (n_samples, n_features).
     :param y: Binary target vector of shape (n_samples,).
