@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -13,17 +14,31 @@ from sklearn.model_selection import train_test_split
 from mbdcor_fs.utils.base.models import RunResult
 from mbdcor_fs.utils.feature_selection.boruta_selection_classifier import boruta_selection_classifier
 from mbdcor_fs.utils.feature_selection.markov_boundary_selection_dcor import markov_boundary_selection_dcor
+from mbdcor_fs.utils.helper.setup_logging import setup_logging
+from mbdcor_fs.utils.train_evaluate.evaluate_metrics import f1_score, precision_percent, recall_percent
 from mbdcor_fs.utils.train_evaluate.train_evaluate_xgboost_classifier import train_evaluate_xgboost_classifier
 
 
-def synthetic_simulation(
+def main_generate_synthetic_data_and_simulation(
     p_list: Sequence[int] = (50, 100, 200, 300, 500),
     n_sims: int = 100,
-    alpha_mb: float = 0.01,
+    alpha_mbdcor: float = 0.01,
     max_workers: int | None = None,
     random_seed: int = 42,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Execute the full Monte Carlo experiment in parallel with varying 'n'."""
+    """
+    Execute the full Monte Carlo experiment in parallel with varying 'n'.
+
+    :param p_list: List of the number of parameters.
+    :param n_sims: Number of simulations.
+    :param alpha_mbdcor: Alpha parameter for mbdcor.
+    :param max_workers: Maximum number of workers.
+    :param random_seed: Random seed.
+
+    :return: Experiment raw dataframe and summary dataframe.
+    """
+    logging.info("Starting synthetic simulation")
+    logging.info(f"p_list={p_list}, n_sims={n_sims}, alpha_mb={alpha_mbdcor}")
     rng = np.random.default_rng(random_seed)
 
     # build list of simulation tasks
@@ -44,14 +59,18 @@ def synthetic_simulation(
                 int(n_values[i]),
                 p,
                 sim,
-                alpha_mb,
+                alpha_mbdcor,
                 random_seed,
             )
             for i, (p, sim) in enumerate(tasks)
         ]
 
-        for fut in as_completed(futures):
-            all_rows.extend(fut.result())
+        for i, fut in enumerate(as_completed(futures), 1):
+            result = fut.result()
+            all_rows.extend(result)
+
+            if i % 10 == 0:
+                logging.info(f"Completed {i}/{len(futures)} simulation tasks")
 
     raw_df = pd.DataFrame([r.__dict__ for r in all_rows])
 
@@ -59,10 +78,14 @@ def synthetic_simulation(
     summary_df = (
         raw_df.groupby(["method", "p"], as_index=False)
         .agg(
-            recall_mean=("recall_pct", "mean"),
-            recall_std=("recall_pct", "std"),
             time_mean=("runtime_s", "mean"),
             time_std=("runtime_s", "std"),
+            recall_mean=("recall_pct", "mean"),
+            recall_std=("recall_pct", "std"),
+            precision_mean=("precision_pct", "mean"),
+            precision_std=("precision_pct", "std"),
+            f1_mean=("f1_score", "mean"),
+            f1_std=("f1_score", "std"),
             nsel_mean=("n_selected", "mean"),
             nsel_std=("n_selected", "std"),
             log_loss_mean=("log_loss", "mean"),
@@ -254,20 +277,6 @@ def _generate_data(
     return x, y, true_features
 
 
-def _recall_percent(selected, truth):
-    """
-    Compute recall percentage of selected features.
-
-    :param selected: Selected feature indices.
-    :param truth: Ground truth feature indices.
-    :return: Recall expressed as a percentage.
-    """
-    sel = np.array(list(selected))
-    if len(sel) == 0:
-        return 0.0
-    return 100.0 * np.intersect1d(sel, truth).size / len(truth)
-
-
 def _run_one_setting(
     n: int,
     p: int,
@@ -285,13 +294,17 @@ def _run_one_setting(
     :param random_state: Base random seed.
     :return: List containing results for both methods.
     """
+    # set up logging
+    setup_logging()
+
+    logging.info(f"[Sim {sim}] Start: n={n}, p={p}")
     rng = np.random.default_rng(random_state)
 
     x, y, true_features = _generate_data(n=n, p=p, rng=rng)
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
 
-    out: List[RunResult] = []
+    results: List[RunResult] = []
 
     # boruta feature selection
     t0 = time.perf_counter()
@@ -300,14 +313,16 @@ def _run_one_setting(
     if len(boruta_sel_list) > 0:
         log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel_list], y_train=y_train, x_test=x[:, boruta_sel_list], y_test=y)
 
-        out.append(
+        results.append(
             RunResult(
                 method="Boruta",
                 n=n,
                 p=p,
                 sim=sim,
                 runtime_s=t1 - t0,
-                recall_pct=_recall_percent(boruta_sel_list, true_features),
+                recall_pct=recall_percent(selected=boruta_sel_list, truth=true_features),
+                precision_pct=precision_percent(selected=boruta_sel_list, truth=true_features),
+                f1_score=f1_score(selected=boruta_sel_list, truth=true_features),
                 n_selected=len(boruta_sel_list),
                 log_loss=log_loss_boruta,
             )
@@ -315,30 +330,32 @@ def _run_one_setting(
 
     # mbdcor feature selection
     t0 = time.perf_counter()
-    mb_sel_list = markov_boundary_selection_dcor(
+    mbdcor_sel_list = markov_boundary_selection_dcor(
         x=x,
         y=y.ravel(),
         alpha=alpha_mb,
         random_state=random_state,
     )
     t1 = time.perf_counter()
-    if len(mb_sel_list) > 0:
-        log_loss_mbdcor = train_evaluate_xgboost_classifier(x_train=x_train[:, mb_sel_list], y_train=y_train, x_test=x_test[:, mb_sel_list], y_test=y_test)
+    if len(mbdcor_sel_list) > 0:
+        log_loss_mbdcor = train_evaluate_xgboost_classifier(x_train=x_train[:, mbdcor_sel_list], y_train=y_train, x_test=x_test[:, mbdcor_sel_list], y_test=y_test)
 
-        out.append(
+        results.append(
             RunResult(
                 method="MBDcor",
                 n=n,
                 p=p,
                 sim=sim,
                 runtime_s=t1 - t0,
-                recall_pct=_recall_percent(mb_sel_list, true_features),
-                n_selected=len(mb_sel_list),
+                recall_pct=recall_percent(selected=mbdcor_sel_list, truth=true_features),
+                precision_pct=precision_percent(selected=mbdcor_sel_list, truth=true_features),
+                f1_score=f1_score(selected=mbdcor_sel_list, truth=true_features),
+                n_selected=len(mbdcor_sel_list),
                 log_loss=log_loss_mbdcor,
             )
         )
 
-    return out
+    return results
 
 
 def plot_runtime(summary_df: pd.DataFrame, save_path: str) -> None:
@@ -350,6 +367,7 @@ def plot_runtime(summary_df: pd.DataFrame, save_path: str) -> None:
 
     :return: None.
     """
+    logging.info("Plotting runtime vs p")
     plt.figure(figsize=(8, 5))
 
     for method, df_method in summary_df.groupby("method"):
@@ -382,6 +400,7 @@ def plot_logloss(summary_df: pd.DataFrame, save_path: str) -> None:
     :param save_path: Path to save the plot to.
     :return: None.
     """
+    logging.info("Plotting log loss")
     plt.figure(figsize=(8, 5))
 
     for method, df_method in summary_df.groupby("method"):
@@ -414,6 +433,7 @@ def plot_nsel(summary_df: pd.DataFrame, save_path: str) -> None:
     :param save_path: Path to save the plot to.
     :return: None.
     """
+    logging.info("Plotting number of selected features")
     plt.figure(figsize=(8, 5))
 
     for method, df_method in summary_df.groupby("method"):
@@ -446,6 +466,7 @@ def plot_recall(summary_df: pd.DataFrame, save_path: str) -> None:
     :param save_path: Path to save the plot to.
     :return: None.
     """
+    logging.info("Plotting recall")
     plt.figure(figsize=(8, 5))
 
     for method, df_method in summary_df.groupby("method"):
@@ -470,15 +491,86 @@ def plot_recall(summary_df: pd.DataFrame, save_path: str) -> None:
     plt.show()
 
 
+def plot_precision(summary_df: pd.DataFrame, save_path: str) -> None:
+    """
+    Plot the relationship between the number of parameters and the mean precision for each feature selection method.
+
+    :param summary_df: DataFrame containing aggregated simulation results.
+    :param save_path: Path to save the plot to.
+    :return: None.
+    """
+    logging.info("Plotting precision")
+    plt.figure(figsize=(8, 5))
+
+    for method, df_method in summary_df.groupby("method"):
+        plt.errorbar(
+            df_method["p"],
+            df_method["precision_mean"],
+            yerr=df_method["precision_std"],
+            marker="o",
+            label=method,
+            capsize=4,
+        )
+
+    plt.xlabel("Number of Parameters (p)")
+    plt.ylabel("Precision")
+    plt.title("Feature Selection Precision")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+
+def plot_f1(summary_df: pd.DataFrame, save_path: str) -> None:
+    """
+    Plot the relationship between the number of parameters and the mean f1 for each feature selection method.
+
+    :param summary_df: DataFrame containing aggregated simulation results.
+    :param save_path: Path to save the plot to.
+    :return: None.
+    """
+    logging.info("Plotting F1")
+    plt.figure(figsize=(8, 5))
+
+    for method, df_method in summary_df.groupby("method"):
+        plt.errorbar(
+            df_method["p"],
+            df_method["f1_mean"],
+            yerr=df_method["f1_std"],
+            marker="o",
+            label=method,
+            capsize=4,
+        )
+
+    plt.xlabel("Number of Parameters (p)")
+    plt.ylabel("F1 Score")
+    plt.title("Feature Selection F1 Score")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+
 if __name__ == "__main__":
-    raw, summary = synthetic_simulation(
+    setup_logging()
+
+    raw, summary_df = main_generate_synthetic_data_and_simulation(
         p_list=[50, 100, 150, 200, 250],
         n_sims=100,
     )
     os.makedirs("results/synthetic_simulation", exist_ok=True)
+
+    logging.info("Saved CSV files")
     raw.to_csv("results/synthetic_simulation/raw.csv", index=False)
-    summary.to_csv("results/synthetic_simulation/summary.csv", index=False)
-    plot_runtime(summary, save_path="results/synthetic_simulation/runtime_vs_p.png")
-    plot_logloss(summary, save_path="results/synthetic_simulation/logloss_vs_p.png")
-    plot_nsel(summary, save_path="results/synthetic_simulation/nsel_vs_p.png")
-    plot_recall(summary, save_path="results/synthetic_simulation/recall_vs_p.png")
+    summary_df.to_csv("results/synthetic_simulation/summary.csv", index=False)
+
+    plot_runtime(summary_df=summary_df, save_path="results/synthetic_simulation/runtime_vs_p.png")
+    plot_recall(summary_df=summary_df, save_path="results/synthetic_simulation/recall_vs_p.png")
+    plot_precision(summary_df=summary_df, save_path="results/synthetic_simulation/precision_vs_p.png")
+    plot_f1(summary_df=summary_df, save_path="results/synthetic_simulation/f1_vs_p.png")
+    plot_nsel(summary_df=summary_df, save_path="results/synthetic_simulation/nsel_vs_p.png")
+    plot_logloss(summary_df=summary_df, save_path="results/synthetic_simulation/logloss_vs_p.png")

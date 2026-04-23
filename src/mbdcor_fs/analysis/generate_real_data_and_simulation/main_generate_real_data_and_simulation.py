@@ -38,14 +38,10 @@ def load_wdbc(path: str) -> Tuple[np.ndarray, np.ndarray]:
     x = df.drop(columns=["diagnosis"]).values
     y = df["diagnosis"].values
 
-    # scale features
-    scaler = StandardScaler()
-    x = scaler.fit_transform(x)
-
     return x, y
 
 
-def _run_one_real(
+def _run_one_real_data_experiment(
     x: np.ndarray,
     y: np.ndarray,
     sim: int,
@@ -53,11 +49,12 @@ def _run_one_real(
     random_state: int = 42,
 ) -> List[Dict[str, Any]]:
     """
-    Execute one Monte Carlo iteration using bootstrap sampling.
+    Execute one Monte Carlo iteration using a random train/test split.
 
-    This function performs bootstrap resampling on the dataset, applies
-    feature selection using Boruta and MBDcor, and evaluates the selected
-    features using an XGBoost classifier.
+    This function splits the dataset into training and test sets, applies
+    feature selection using Boruta and MBDcor on the training data, and
+    evaluates the selected features using an XGBoost classifier on the
+    held-out test data.
 
     :param x: Feature matrix of shape (n_samples, n_features).
     :param y: Binary target vector of shape (n_samples,).
@@ -70,24 +67,28 @@ def _run_one_real(
     # split data into train and test
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_state + sim)
 
-    results: List[Dict[str, Any]] = []
+    # scale features
+    scaler = StandardScaler()
+    x_train = scaler.fit_transform(x_train)
+    x_test = scaler.transform(x_test)
 
+    results: List[Dict[str, Any]] = []
     # -------------------------
     # Boruta
     # -------------------------
     t0 = time.perf_counter()
-    boruta_sel = boruta_selection_classifier(x=x_train, y=y_train)
+    boruta_sel_list = boruta_selection_classifier(x_train=x_train, y_train=y_train)
     t1 = time.perf_counter()
 
-    if len(boruta_sel) > 0:
-        log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel], y_train=y_train, x_test=x_test[:, boruta_sel], y_test=y_test, random_state=random_state + sim)
+    if len(boruta_sel_list) > 0:
+        log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel_list], y_train=y_train, x_test=x_test[:, boruta_sel_list], y_test=y_test, random_state=random_state + sim)
 
         results.append(
             {
                 "method": "Boruta",
                 "sim": sim,
                 "runtime_s": t1 - t0,
-                "n_selected": len(boruta_sel),
+                "n_selected": len(boruta_sel_list),
                 "log_loss": log_loss_boruta,
             }
         )
@@ -96,7 +97,7 @@ def _run_one_real(
     # MBDcor
     # -------------------------
     t0 = time.perf_counter()
-    mb_sel = markov_boundary_selection_dcor(
+    mb_sel_list = markov_boundary_selection_dcor(
         x=x_train,
         y=y_train,
         alpha=alpha_mb,
@@ -104,11 +105,11 @@ def _run_one_real(
     )
     t1 = time.perf_counter()
 
-    if len(mb_sel) > 0:
+    if len(mb_sel_list) > 0:
         log_loss_mbdcor = train_evaluate_xgboost_classifier(
-            x_train=x_train[:, mb_sel],
+            x_train=x_train[:, mb_sel_list],
             y_train=y_train,
-            x_test=x_test[:, mb_sel],
+            x_test=x_test[:, mb_sel_list],
             y_test=y_test,
             random_state=random_state + sim,
         )
@@ -118,7 +119,7 @@ def _run_one_real(
                 "method": "MBDcor",
                 "sim": sim,
                 "runtime_s": t1 - t0,
-                "n_selected": len(mb_sel),
+                "n_selected": len(mb_sel_list),
                 "log_loss": log_loss_mbdcor,
             }
         )
@@ -130,16 +131,16 @@ def real_data_experiment(
     x: np.ndarray,
     y: np.ndarray,
     n_sims: int = 50,
-    alpha_mb: float = 0.05,
+    alpha_mb: float = 0.01,
     max_workers: int | None = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Run Monte Carlo experiments on real data using bootstrap resampling.
+    Run repeated Monte Carlo experiments on real data using random train/test splits.
 
-    This function executes multiple simulations in parallel, where each
-    simulation applies feature selection and model evaluation on a bootstrap
-    sample of the dataset. The results are aggregated to compute summary
-    statistics for each method.
+    This function executes multiple simulations in parallel. In each
+    simulation, the dataset is randomly split into training and test sets,
+    feature selection is applied on the training data, and predictive
+    performance is evaluated on the test data.
 
     :param x: Feature matrix of shape (n_samples, n_features).
     :param y: Binary target vector of shape (n_samples,).
@@ -156,12 +157,12 @@ def real_data_experiment(
     logging.info(f"Starting real data experiment with {n_sims} simulations...")
 
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
-        futures = [ex.submit(_run_one_real, x, y, sim, alpha_mb) for sim in range(n_sims)]
+        futures = [ex.submit(_run_one_real_data_experiment, x, y, sim, alpha_mb) for sim in range(n_sims)]
 
         for i, fut in enumerate(as_completed(futures), start=1):
             result = fut.result()
             all_rows.extend(result)
-            logging.info(f"Completed simulation {i}/{n_sims} (returned {len(result)} rows)")
+            logging.info(f"Completed simulation {i}/{n_sims}")
 
     raw_df = pd.DataFrame(all_rows)
 
