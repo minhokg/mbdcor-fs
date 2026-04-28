@@ -77,7 +77,7 @@ def _run_one_real_data_experiment(
     # Boruta
     # -------------------------
     t0 = time.perf_counter()
-    boruta_sel_list = boruta_selection_classifier(x_train=x_train, y_train=y_train)
+    boruta_sel_list = boruta_selection_classifier(x=x, y=y)
     t1 = time.perf_counter()
 
     if len(boruta_sel_list) > 0:
@@ -98,8 +98,8 @@ def _run_one_real_data_experiment(
     # -------------------------
     t0 = time.perf_counter()
     mb_sel_list = markov_boundary_selection_dcor(
-        x=x_train,
-        y=y_train,
+        x=x,
+        y=y,
         alpha=alpha_mb,
         random_state=random_state + sim,
     )
