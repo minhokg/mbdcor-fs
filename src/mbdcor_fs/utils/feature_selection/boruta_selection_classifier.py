@@ -15,7 +15,7 @@ def boruta_selection_classifier(x: np.ndarray, y: np.ndarray, random_state: int 
     :return: list of selected features
     """
     # create a random forest classifier
-    rf = RandomForestClassifier(max_depth=5, random_state=random_state)
+    rf = RandomForestClassifier(random_state=random_state)
 
     # run boruta feature selection
     boruta = BorutaPy(rf, n_estimators="auto", random_state=random_state)
