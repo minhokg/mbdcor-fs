@@ -5,12 +5,12 @@ from boruta import BorutaPy
 from sklearn.ensemble import RandomForestClassifier
 
 
-def boruta_selection_classifier(x_train: np.ndarray, y_train: np.ndarray, random_state: int = 42) -> List[int]:
+def boruta_selection_classifier(x: np.ndarray, y: np.ndarray, random_state: int = 42) -> List[int]:
     """
     Boruta selection using a Random Forest classifier.
 
-    :param x_train: feature of training set
-    :param y_train: label of training set
+    :param x: Array of feature set
+    :param y: Array of label set
     :param random_state: random seed
     :return: list of selected features
     """
@@ -19,7 +19,7 @@ def boruta_selection_classifier(x_train: np.ndarray, y_train: np.ndarray, random
 
     # run boruta feature selection
     boruta = BorutaPy(rf, n_estimators="auto", random_state=random_state)
-    boruta.fit(x_train, y_train)
+    boruta.fit(x, y)
 
     # get selected features
     selected_features_idx = [index for index, value in enumerate(boruta.support_) if value]
