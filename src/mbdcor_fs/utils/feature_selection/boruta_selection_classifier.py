@@ -9,14 +9,10 @@ def boruta_selection_classifier(x: np.ndarray, y: np.ndarray, random_state: int 
     """
     Boruta selection using a Random Forest classifier.
 
-    Args:
-        x (np.ndarray): Feature matrix
-        y (np.ndarray): Target vector
-        random_state (int, optional): Random state. Defaults to 42.
-
-    Returns:
-        List[int]:
-
+    :param x: Array of feature set
+    :param y: Array of label set
+    :param random_state: random seed
+    :return: list of selected features
     """
     # create a random forest classifier
     rf = RandomForestClassifier(max_depth=5, random_state=random_state)
