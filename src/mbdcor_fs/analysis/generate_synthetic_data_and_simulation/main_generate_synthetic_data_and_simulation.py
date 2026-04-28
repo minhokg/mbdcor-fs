@@ -308,7 +308,7 @@ def _run_one_setting(
 
     # boruta feature selection
     t0 = time.perf_counter()
-    boruta_sel_list = boruta_selection_classifier(x=x, y=y)
+    boruta_sel_list = boruta_selection_classifier(x_train=x_train, y_train=y_train)
     t1 = time.perf_counter()
     if len(boruta_sel_list) > 0:
         log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel_list], y_train=y_train, x_test=x[:, boruta_sel_list], y_test=y)
@@ -381,9 +381,9 @@ def plot_runtime(summary_df: pd.DataFrame, save_path: str) -> None:
             linestyle="-",
         )
 
-    plt.xlabel("Number of Parameters (p)")
-    plt.ylabel("Mean Runtime (seconds)")
-    plt.title("Runtime Comparison: Boruta vs MBDcor")
+    plt.xlabel("Number of Parameters (p)", fontsize=14)
+    plt.ylabel("Mean Runtime (seconds)", fontsize=14)
+    plt.title("Runtime Comparison: Boruta vs MBDcor", fontsize=16)
     plt.legend()
     plt.grid(True)
 
@@ -414,9 +414,9 @@ def plot_logloss(summary_df: pd.DataFrame, save_path: str) -> None:
             linestyle="-",  # solid line connecting points
         )
 
-    plt.xlabel("Number of Parameters (p)")
-    plt.ylabel("Mean Log Loss")
-    plt.title("Prediction Performance: Boruta vs MBDcor")
+    plt.xlabel("Number of Parameters (p)", fontsize=14)
+    plt.ylabel("Mean Log Loss", fontsize=14)
+    plt.title("Prediction Performance: Boruta vs MBDcor", fontsize=16)
     plt.legend()
     plt.grid(True)
 
@@ -447,9 +447,9 @@ def plot_nsel(summary_df: pd.DataFrame, save_path: str) -> None:
             linestyle="-",
         )
 
-    plt.xlabel("Number of Parameters (p)")
-    plt.ylabel("Mean Number of Selected Features")
-    plt.title("Feature Selection: Number of Selected Features (Mean ± Std)")
+    plt.xlabel("Number of Parameters (p)", fontsize=14)
+    plt.ylabel("Mean Number of Selected Features", fontsize=14)
+    plt.title("Feature Selection: Number of Selected Features (Mean ± Std)", fontsize=16)
     plt.legend()
     plt.grid(True)
 
@@ -480,9 +480,9 @@ def plot_recall(summary_df: pd.DataFrame, save_path: str) -> None:
             linestyle="-",
         )
 
-    plt.xlabel("Number of Parameters (p)")
-    plt.ylabel("Mean Recall (%)")
-    plt.title("Feature Selection Recall (Mean ± Std)")
+    plt.xlabel("Number of Parameters (p)", fontsize=14)
+    plt.ylabel("Mean Recall (%)", fontsize=14)
+    plt.title("Feature Selection Recall (Mean ± Std)", fontsize=16)
     plt.legend()
     plt.grid(True)
 
@@ -512,9 +512,9 @@ def plot_precision(summary_df: pd.DataFrame, save_path: str) -> None:
             capsize=4,
         )
 
-    plt.xlabel("Number of Parameters (p)")
-    plt.ylabel("Precision")
-    plt.title("Feature Selection Precision")
+    plt.xlabel("Number of Parameters (p)", fontsize=14)
+    plt.ylabel("Precision", fontsize=14)
+    plt.title("Feature Selection Precision", fontsize=16)
     plt.legend()
     plt.grid(True)
 
@@ -544,9 +544,9 @@ def plot_f1(summary_df: pd.DataFrame, save_path: str) -> None:
             capsize=4,
         )
 
-    plt.xlabel("Number of Parameters (p)")
-    plt.ylabel("F1 Score")
-    plt.title("Feature Selection F1 Score")
+    plt.xlabel("Number of Parameters (p)", fontsize=14)
+    plt.ylabel("F1 Score", fontsize=14)
+    plt.title("Feature Selection F1 Score", fontsize=16)
     plt.legend()
     plt.grid(True)
 
