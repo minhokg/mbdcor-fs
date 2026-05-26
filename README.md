@@ -73,6 +73,19 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Install pre-commit hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Run pre-commit checks manually:
+
+```bash
+pre-commit run --all-files
+```
+
 ---
 
 
