@@ -26,7 +26,7 @@ def precision_percent(selected: list, truth: np.ndarray) -> float:
     sel = np.array(list(selected))
     if len(sel) == 0:
         return 0.0
-    return 100.0 * np.intersect1d(sel, truth).size / len(truth)
+    return 100.0 * np.intersect1d(sel, truth).size / len(sel)
 
 
 def f1_score(selected: list, truth: np.ndarray) -> float:
