@@ -308,7 +308,7 @@ def _run_one_setting(
 
     # boruta feature selection
     t0 = time.perf_counter()
-    boruta_sel_list = boruta_selection_classifier(x=x, y=y)
+    boruta_sel_list = boruta_selection_classifier(x=x_train, y=y_train)
     t1 = time.perf_counter()
     if len(boruta_sel_list) > 0:
         log_loss_boruta = train_evaluate_xgboost_classifier(x_train=x_train[:, boruta_sel_list], y_train=y_train, x_test=x_test[:, boruta_sel_list], y_test=y_test)
@@ -331,8 +331,8 @@ def _run_one_setting(
     # mbdcor feature selection
     t0 = time.perf_counter()
     mbdcor_sel_list = markov_boundary_selection_dcor(
-        x=x,
-        y=y.ravel(),
+        x=x_train,
+        y=y_train.ravel(),
         alpha=alpha_mb,
         random_state=random_state,
     )
