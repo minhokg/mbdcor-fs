@@ -1,34 +1,51 @@
 # mbdcor-fs
 
-Feature selection using **Modified Brownian Distance Correlation (MBDCor)** for high-dimensional machine learning problems.
+Feature selection using **Markov Boundary Discovery with Distance Correlation (MBDcor)** for nonlinear binary classification problems.
 
 ---
 
 ## Overview
 
-`mbdcor-fs` is a lightweight feature selection framework based on distance correlation methods.  
-The repository provides tools to identify informative variables by measuring nonlinear dependence between features and target variables.
+`mbdcor-fs` is a feature selection framework inspired by **Markov Boundary discovery** and **distance correlation** theory.
 
-The project is designed for:
+The repository implements the methodology proposed in the master thesis:
 
-- high-dimensional datasets,
-- nonlinear feature-target relationships,
-- preprocessing before machine learning models,
-- interpretable feature ranking.
+> *Markov Boundary Discovery with Distance Correlation for Feature Selection in Classification Problems*  
+> Minho Kang, Hertie School
 
-The method extends classical distance correlation approaches with a modified Brownian distance correlation framework to improve robustness and feature screening performance.
+The goal of the project is to identify a compact and informative subset of features that approximates the **Markov Boundary** of a target variable while remaining computationally efficient in high-dimensional settings.
+
+The method combines:
+
+- marginal dependence screening,
+- residual-based conditional dependence testing,
+- random subspace exploration,
+- stability-based aggregation,
+- and adaptive pruning.
+
+Unlike traditional correlation-based feature selection methods, MBDcor is designed to capture both **linear and nonlinear dependencies** using **distance correlation**.
+
+The repository also includes experiments comparing MBDcor against **Boruta Random Forest** feature selection on both synthetic and real-world datasets.
 
 ---
 
-## Features
+## Motivation
 
-- Nonlinear dependency-based feature selection
-- Works with regression and classification tasks
-- Feature ranking and screening utilities
-- Simple and modular Python implementation
-- Compatible with common ML workflows
+In high-dimensional machine learning problems, many variables may be:
+
+- irrelevant,
+- redundant,
+- noisy,
+- or highly correlated.
+
+The Markov Boundary provides a theoretically grounded target for feature selection because it represents the minimal set of variables that contains all predictive information about the target.
+
+However, exact Markov Boundary recovery is computationally difficult, especially in nonlinear settings.
+
+MBDcor provides a practical approximation approach using distance-correlation-based dependence testing and stochastic stability selection.
 
 ---
+
 
 ## Repository Structure
 
@@ -49,7 +66,6 @@ mbdcor-fs/
 └── README.md
 ```
 
----
 
 ## Installation
 
@@ -89,41 +105,42 @@ pre-commit run --all-files
 ---
 
 
-## Methodology
+## Experimental Design
 
-The framework uses Modified Brownian Distance Correlation (MBDCor) to evaluate dependence between input variables and target responses.
+The repository includes experiments from the thesis involving:
 
-Compared with traditional correlation-based methods, MBDCor can:
+- Synthetic nonlinear classification datasets
+- Correlated feature structures
+- Monte Carlo simulations
+- Real-world Breast Cancer Wisconsin dataset
 
-- capture nonlinear relationships,
-- detect non-monotonic dependencies,
-- reduce sensitivity to linearity assumptions,
-- improve feature screening in complex datasets.
+MBDcor is compared against:
 
-Typical pipeline:
+- Boruta Random Forest Feature Selection
 
-1. Load dataset
-2. Compute MBDCor scores
-3. Rank features
-4. Select top-k variables
-5. Train downstream ML models
+Evaluation metrics include:
 
-
-
-----
-
-## Contributing
-
-Contributions are welcome.
-
-To contribute:
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Open a pull request
+- Predictive log-loss
+- Feature recall
+- Runtime
+- Number of selected features
 
 ---
+
+
+
+
+
+## Thesis
+
+This repository accompanies the thesis:
+
+> **Markov Boundary Discovery with Distance Correlation for Feature Selection in Classification Problems**  
+> Minho Kang  
+> Hertie School — Data Science for Public Policy
+
+---
+
 
 ## License
 
